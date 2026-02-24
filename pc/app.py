@@ -4,35 +4,165 @@ import sqlite3
 
 app = Flask(__name__)
 app.secret_key = "secretkey"
-@app.route("/")
-def home():
-    return "App Working"
+
+def init_db():
+    """Initialize database with all required tables"""
+    conn = sqlite3.connect("database.db")
+    cursor = conn.cursor()
+    
+    # Create admin table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS admin (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            password TEXT NOT NULL
+        )
+    ''')
+    
+    # Create courses table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS courses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            course_name TEXT NOT NULL UNIQUE
+        )
+    ''')
+    
+    # Create semesters table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS semesters (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            semester_name TEXT NOT NULL UNIQUE
+        )
+    ''')
+    
+    # Create divisions table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS divisions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            division_name TEXT NOT NULL UNIQUE
+        )
+    ''')
+    
+    # Create students table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS students (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            register_no TEXT NOT NULL UNIQUE,
+            course_id INTEGER NOT NULL,
+            semester_id INTEGER NOT NULL,
+            division_id INTEGER NOT NULL,
+            FOREIGN KEY (course_id) REFERENCES courses (id),
+            FOREIGN KEY (semester_id) REFERENCES semesters (id),
+            FOREIGN KEY (division_id) REFERENCES divisions (id)
+        )
+    ''')
+    
+    # Create subjects table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS subjects (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            subject_name TEXT NOT NULL,
+            course_id INTEGER NOT NULL,
+            semester_id INTEGER NOT NULL,
+            FOREIGN KEY (course_id) REFERENCES courses (id),
+            FOREIGN KEY (semester_id) REFERENCES semesters (id)
+        )
+    ''')
+    
+    # Create exams table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS exams (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            exam_name TEXT NOT NULL UNIQUE
+        )
+    ''')
+    
+    # Create attendance table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS attendance (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id INTEGER NOT NULL,
+            subject_id INTEGER NOT NULL,
+            present INTEGER DEFAULT 0,
+            FOREIGN KEY (student_id) REFERENCES students (id),
+            FOREIGN KEY (subject_id) REFERENCES subjects (id),
+            UNIQUE(student_id, subject_id)
+        )
+    ''')
+    
+    # Create marks table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS marks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id INTEGER NOT NULL,
+            subject_id INTEGER NOT NULL,
+            exam_id INTEGER NOT NULL,
+            mark INTEGER DEFAULT 0,
+            FOREIGN KEY (student_id) REFERENCES students (id),
+            FOREIGN KEY (subject_id) REFERENCES subjects (id),
+            FOREIGN KEY (exam_id) REFERENCES exams (id),
+            UNIQUE(student_id, subject_id, exam_id)
+        )
+    ''')
+    
+    # Insert default admin if not exists
+    cursor.execute('SELECT COUNT(*) FROM admin')
+    if cursor.fetchone()[0] == 0:
+        cursor.execute('INSERT INTO admin (username, password) VALUES (?, ?)', 
+                      ('admin', hashlib.md5('admin'.encode()).hexdigest()))
+    
+    # Insert sample data if tables are empty
+    cursor.execute('SELECT COUNT(*) FROM courses')
+    if cursor.fetchone()[0] == 0:
+        cursor.executemany('INSERT INTO courses (course_name) VALUES (?)', [
+            ('Computer Science',),
+            ('Information Technology',),
+            ('Electronics',)
+        ])
+    
+    cursor.execute('SELECT COUNT(*) FROM semesters')
+    if cursor.fetchone()[0] == 0:
+        cursor.executemany('INSERT INTO semesters (semester_name) VALUES (?)', [
+            ('1st Semester',),
+            ('2nd Semester',),
+            ('3rd Semester',),
+            ('4th Semester',)
+        ])
+    
+    cursor.execute('SELECT COUNT(*) FROM divisions')
+    if cursor.fetchone()[0] == 0:
+        cursor.executemany('INSERT INTO divisions (division_name) VALUES (?)', [
+            ('A',),
+            ('B',),
+            ('C',)
+        ])
+    
+    cursor.execute('SELECT COUNT(*) FROM exams')
+    if cursor.fetchone()[0] == 0:
+        cursor.executemany('INSERT INTO exams (exam_name) VALUES (?)', [
+            ('Mid Term',),
+            ('Final Exam',),
+            ('Internal Assessment',)
+        ])
+    
+    conn.commit()
+    conn.close()
 
 def get_db():
     conn = sqlite3.connect("database.db")
     conn.row_factory = sqlite3.Row
     return conn
 
-
-# ================= DATABASE =================
-def get_db():
-    return mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="",
-        database="kmct_db"
-    )
-
+# Initialize database on startup
+init_db()
 
 # ================= LOGIN =================
 @app.route("/", methods=["GET", "POST"])
 def login():
-    
-
     if request.method == "POST":
-
         db = get_db()
-        cursor = db.cursor(dictionary=True)
+        cursor = db.cursor()
 
         username = request.form["username"]
         password = hashlib.md5(
@@ -40,7 +170,7 @@ def login():
         ).hexdigest()
 
         cursor.execute(
-            "SELECT * FROM admin WHERE username=%s AND password=%s",
+            "SELECT * FROM admin WHERE username=? AND password=?",
             (username, password)
         )
 
@@ -57,16 +187,14 @@ def login():
 
     return render_template("login.html")
 
-
 # ================= PAGE 1 =================
 @app.route("/page1", methods=["GET", "POST"])
 def page1():
-
     if "admin" not in session:
         return redirect("/")
 
     db = get_db()
-    cursor = db.cursor(dictionary=True)
+    cursor = db.cursor()
 
     selected_course = None
     selected_sem = None
@@ -80,12 +208,39 @@ def page1():
     # ================= POST ACTIONS =================
     if request.method == "POST":
 
+        # -------- PRESERVE FILTER STATE --------
+        # Always capture filter values if they exist in the form
+        if "course" in request.form and request.form["course"]:
+            selected_course = request.form["course"]
+        elif "preserve_course" in request.form:
+            selected_course = request.form["preserve_course"]
+            
+        if "sem" in request.form and request.form["sem"]:
+            selected_sem = request.form["sem"]
+        elif "preserve_sem" in request.form:
+            selected_sem = request.form["preserve_sem"]
+            
+        if "div" in request.form and request.form["div"]:
+            selected_div = request.form["div"]
+        elif "preserve_div" in request.form:
+            selected_div = request.form["preserve_div"]
+            
+        if "sub_course" in request.form and request.form["sub_course"]:
+            selected_sub_course = request.form["sub_course"]
+        elif "preserve_sub_course" in request.form:
+            selected_sub_course = request.form["preserve_sub_course"]
+            
+        if "sub_sem" in request.form and request.form["sub_sem"]:
+            selected_sub_sem = request.form["sub_sem"]
+        elif "preserve_sub_sem" in request.form:
+            selected_sub_sem = request.form["preserve_sub_sem"]
+
         # -------- ADD STUDENT --------
         if "save_student" in request.form:
             cursor.execute("""
                 INSERT INTO students
                 (name, register_no, course_id, semester_id, division_id)
-                VALUES (%s,%s,%s,%s,%s)
+                VALUES (?,?,?,?,?)
             """, (
                 request.form["name"],
                 request.form["reg"],
@@ -100,7 +255,7 @@ def page1():
             cursor.execute("""
                 INSERT INTO subjects
                 (subject_name, course_id, semester_id)
-                VALUES (%s,%s,%s)
+                VALUES (?,?,?)
             """, (
                 request.form["subject_name"],
                 request.form["sub_course"],
@@ -111,7 +266,7 @@ def page1():
         # -------- ADD EXAM --------
         elif "add_exam" in request.form:
             cursor.execute(
-                "INSERT INTO exams (exam_name) VALUES (%s)",
+                "INSERT INTO exams (exam_name) VALUES (?)",
                 (request.form["exam_name"],)
             )
             db.commit()
@@ -119,39 +274,34 @@ def page1():
         # -------- CLASS MANAGEMENT (FILTER + DELETE STUDENT) --------
         elif "manage_class" in request.form:
 
-            selected_course = request.form["course"]
-            selected_sem = request.form["sem"]
-            selected_div = request.form["div"]
-
             # Delete single student
             if request.form.get("student_id"):
                 cursor.execute(
-                    "DELETE FROM students WHERE id=%s",
+                    "DELETE FROM students WHERE id=?",
                     (request.form["student_id"],)
                 )
                 db.commit()
 
-            # Fetch filtered students
-            cursor.execute("""
-                SELECT * FROM students
-                WHERE course_id=%s AND semester_id=%s AND division_id=%s
-            """, (selected_course, selected_sem, selected_div))
+            # Fetch filtered students only if we have all filter values
+            if selected_course and selected_sem and selected_div:
+                cursor.execute("""
+                    SELECT * FROM students
+                    WHERE course_id=? AND semester_id=? AND division_id=?
+                """, (selected_course, selected_sem, selected_div))
 
-            students = cursor.fetchall()
+                students = cursor.fetchall()
 
         # -------- DELETE ENTIRE CLASS --------
         elif "delete_class_btn" in request.form:
 
-            selected_course = request.form["course"]
-            selected_sem = request.form["sem"]
-            selected_div = request.form["div"]
+            # Delete students only if we have all filter values
+            if selected_course and selected_sem and selected_div:
+                cursor.execute("""
+                    DELETE FROM students
+                    WHERE course_id=? AND semester_id=? AND division_id=?
+                """, (selected_course, selected_sem, selected_div))
 
-            cursor.execute("""
-                DELETE FROM students
-                WHERE course_id=%s AND semester_id=%s AND division_id=%s
-            """, (selected_course, selected_sem, selected_div))
-
-            db.commit()
+                db.commit()
 
             students = []
 
@@ -164,7 +314,7 @@ def page1():
 
             cursor.execute("""
                 SELECT id FROM students
-                WHERE course_id=%s AND semester_id=%s AND division_id=%s
+                WHERE course_id=? AND semester_id=? AND division_id=?
                 LIMIT 1
             """, (course, sem, div))
 
@@ -188,20 +338,19 @@ def page1():
         # -------- FILTER SUBJECTS --------
         elif "filter_subject" in request.form:
 
-            selected_sub_course = request.form["sub_course"]
-            selected_sub_sem = request.form["sub_sem"]
+            # Fetch filtered subjects only if we have both filter values
+            if selected_sub_course and selected_sub_sem:
+                cursor.execute("""
+                    SELECT * FROM subjects
+                    WHERE course_id=? AND semester_id=?
+                """, (selected_sub_course, selected_sub_sem))
 
-            cursor.execute("""
-                SELECT * FROM subjects
-                WHERE course_id=%s AND semester_id=%s
-            """, (selected_sub_course, selected_sub_sem))
-
-            subjects = cursor.fetchall()
+                subjects = cursor.fetchall()
 
     # ================= DELETE LINKS (GET) =================
     if request.args.get("delete_subject"):
         cursor.execute(
-            "DELETE FROM subjects WHERE id=%s",
+            "DELETE FROM subjects WHERE id=?",
             (request.args.get("delete_subject"),)
         )
         db.commit()
@@ -209,7 +358,7 @@ def page1():
 
     if request.args.get("delete_exam"):
         cursor.execute(
-            "DELETE FROM exams WHERE id=%s",
+            "DELETE FROM exams WHERE id=?",
             (request.args.get("delete_exam"),)
         )
         db.commit()
@@ -255,15 +404,15 @@ def page1():
         selected_sub_course=selected_sub_course,
         selected_sub_sem=selected_sub_sem
     )
+
 # ================= PAGE 2 =================
 @app.route("/page2/<int:student_id>")
 def page2(student_id):
-
     if "admin" not in session:
         return redirect("/")
 
     db = get_db()
-    cursor = db.cursor(dictionary=True, buffered=True)
+    cursor = db.cursor()
 
     cursor.execute("SELECT COUNT(*) as total FROM students")
     total_students = cursor.fetchone()
@@ -285,7 +434,7 @@ def page2(student_id):
         LEFT JOIN courses c ON s.course_id = c.id
         LEFT JOIN semesters sem ON s.semester_id = sem.id
         LEFT JOIN divisions d ON s.division_id = d.id
-        WHERE s.id = %s
+        WHERE s.id = ?
     """, (student_id,))
 
     student = cursor.fetchone()
@@ -303,14 +452,14 @@ def page2(student_id):
 
     cursor.execute("""
         SELECT * FROM students
-        WHERE course_id=%s AND semester_id=%s AND division_id=%s
+        WHERE course_id=? AND semester_id=? AND division_id=?
     """, (student["course_id"], student["semester_id"], student["division_id"]))
 
     class_students = cursor.fetchall()
 
     cursor.execute("""
         SELECT * FROM subjects
-        WHERE course_id=%s AND semester_id=%s
+        WHERE course_id=? AND semester_id=?
     """, (student["course_id"], student["semester_id"]))
 
     subjects = cursor.fetchall()
@@ -321,36 +470,35 @@ def page2(student_id):
     data = []
 
     for sub in subjects:
-
-    # Attendance
-      cursor.execute("""
-        SELECT present
-        FROM attendance
-        WHERE student_id=%s AND subject_id=%s
-    """, (student_id, sub["id"]))
-
-    att = cursor.fetchone()
-    total_att = att["present"] if att else 0
-
-    # Marks
-    marks = []
-    for exam in exams:
+        # Attendance
         cursor.execute("""
-            SELECT mark FROM marks
-            WHERE student_id=%s AND subject_id=%s AND exam_id=%s
-        """, (student_id, sub["id"], exam["id"]))
+            SELECT present
+            FROM attendance
+            WHERE student_id=? AND subject_id=?
+        """, (student_id, sub["id"]))
 
-        markData = cursor.fetchone()
-        mark = markData["mark"] if markData else 0
-        marks.append(mark)
+        att = cursor.fetchone()
+        total_att = att["present"] if att else 0
 
-    # ✅ NOW append (OUTSIDE exam loop)
-    data.append({
-        "subject": sub["subject_name"],
-        "subject_id": sub["id"],
-        "attendance": total_att,
-        "marks": marks
-    })
+        # Marks
+        marks = []
+        for exam in exams:
+            cursor.execute("""
+                SELECT mark FROM marks
+                WHERE student_id=? AND subject_id=? AND exam_id=?
+            """, (student_id, sub["id"], exam["id"]))
+
+            markData = cursor.fetchone()
+            mark = markData["mark"] if markData else 0
+            marks.append(mark)
+
+        # Append data
+        data.append({
+            "subject": sub["subject_name"],
+            "subject_id": sub["id"],
+            "attendance": total_att,
+            "marks": marks
+        })
 
     cursor.close()
     db.close()
@@ -362,29 +510,27 @@ def page2(student_id):
         data=data,
         exams=exams
     )
+
 @app.route("/save_progress", methods=["POST"])
 def save_progress():
-
     if "admin" not in session:
         return redirect("/")
 
     student_id = request.form["student_id"]
 
     db = get_db()
-    cursor = db.cursor(dictionary=True, buffered=True)
+    cursor = db.cursor()
 
     # ---------- SAVE ATTENDANCE ----------
     for key in request.form:
-
         if key.startswith("att_"):
-
             subject_id = key.split("_")[1]
             attendance_value = request.form[key]
 
             # Check if record exists
             cursor.execute("""
                 SELECT id FROM attendance
-                WHERE student_id=%s AND subject_id=%s
+                WHERE student_id=? AND subject_id=?
             """, (student_id, subject_id))
 
             existing = cursor.fetchone()
@@ -392,20 +538,18 @@ def save_progress():
             if existing:
                 cursor.execute("""
                     UPDATE attendance
-                    SET present=%s
-                    WHERE student_id=%s AND subject_id=%s
+                    SET present=?
+                    WHERE student_id=? AND subject_id=?
                 """, (attendance_value, student_id, subject_id))
             else:
                 cursor.execute("""
                     INSERT INTO attendance
                     (student_id, subject_id, present)
-                    VALUES (%s,%s,%s)
+                    VALUES (?,?,?)
                 """, (student_id, subject_id, attendance_value))
-
 
         # ---------- SAVE MARKS ----------
         if key.startswith("mark_"):
-
             parts = key.split("_")
             subject_id = parts[1]
             exam_id = parts[2]
@@ -413,7 +557,7 @@ def save_progress():
 
             cursor.execute("""
                 SELECT id FROM marks
-                WHERE student_id=%s AND subject_id=%s AND exam_id=%s
+                WHERE student_id=? AND subject_id=? AND exam_id=?
             """, (student_id, subject_id, exam_id))
 
             existing = cursor.fetchone()
@@ -421,14 +565,14 @@ def save_progress():
             if existing:
                 cursor.execute("""
                     UPDATE marks
-                    SET mark=%s
-                    WHERE student_id=%s AND subject_id=%s AND exam_id=%s
+                    SET mark=?
+                    WHERE student_id=? AND subject_id=? AND exam_id=?
                 """, (mark_value, student_id, subject_id, exam_id))
             else:
                 cursor.execute("""
                     INSERT INTO marks
                     (student_id, subject_id, exam_id, mark)
-                    VALUES (%s,%s,%s,%s)
+                    VALUES (?,?,?,?)
                 """, (student_id, subject_id, exam_id, mark_value))
 
     db.commit()
@@ -437,12 +581,10 @@ def save_progress():
 
     return redirect(f"/page2/{student_id}")
 
-    return redirect(f"/page2/{student_id}")
 @app.route("/bulk_print/<int:course>/<int:sem>/<int:div>")
 def bulk_print(course, sem, div):
-
     db = get_db()
-    cursor = db.cursor(dictionary=True)
+    cursor = db.cursor()
 
     # Students in class
     cursor.execute("""
@@ -451,7 +593,7 @@ def bulk_print(course, sem, div):
         LEFT JOIN courses c ON s.course_id = c.id
         LEFT JOIN semesters sem ON s.semester_id = sem.id
         LEFT JOIN divisions d ON s.division_id = d.id
-        WHERE s.course_id=%s AND s.semester_id=%s AND s.division_id=%s
+        WHERE s.course_id=? AND s.semester_id=? AND s.division_id=?
     """, (course, sem, div))
 
     students = cursor.fetchall()
@@ -459,7 +601,7 @@ def bulk_print(course, sem, div):
     # Subjects
     cursor.execute("""
         SELECT * FROM subjects
-        WHERE course_id=%s AND semester_id=%s
+        WHERE course_id=? AND semester_id=?
     """, (course, sem))
     subjects = cursor.fetchall()
 
@@ -470,16 +612,14 @@ def bulk_print(course, sem, div):
     final_data = []
 
     for student in students:
-
         subject_data = []
 
         for sub in subjects:
-
             # Attendance
             cursor.execute("""
                 SELECT SUM(present) as total
                 FROM attendance
-                WHERE student_id=%s AND subject_id=%s
+                WHERE student_id=? AND subject_id=?
             """, (student["id"], sub["id"]))
 
             att = cursor.fetchone()
@@ -490,7 +630,7 @@ def bulk_print(course, sem, div):
             for exam in exams:
                 cursor.execute("""
                     SELECT mark FROM marks
-                    WHERE student_id=%s AND subject_id=%s AND exam_id=%s
+                    WHERE student_id=? AND subject_id=? AND exam_id=?
                 """, (student["id"], sub["id"], exam["id"]))
 
                 m = cursor.fetchone()
@@ -523,8 +663,7 @@ def logout():
     session.pop("admin", None)
     return redirect("/")
 
-
 if __name__ == "__main__":
-
     app.run(debug=True)
+
 
