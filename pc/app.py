@@ -4,6 +4,9 @@ import sqlite3
 
 app = Flask(__name__)
 app.secret_key = "secretkey"
+@app.route("/")
+def home():
+    return "App Working"
 
 def get_db():
     conn = sqlite3.connect("database.db")
@@ -524,3 +527,4 @@ def logout():
 if __name__ == "__main__":
 
     app.run(debug=True)
+
