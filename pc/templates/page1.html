@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>KMCT – Admin Panel</title>
+
+<style>
+body{margin:0;font-family:'Segoe UI';background:#eef1f6;}
+.navbar{background:#1e3c72;color:white;padding:20px;text-align:center;position:relative;}
+.logout{position:absolute;right:20px;top:20px;color:white;text-decoration:none;}
+.container{width:95%;margin:30px auto;}
+.section{margin-bottom:50px;}
+.section h2{color:#1e3c72;border-bottom:3px solid #1e3c72;padding-bottom:8px;}
+.card{background:white;padding:20px;margin:20px 0;border-radius:10px;box-shadow:0 4px 10px rgba(0,0,0,0.08);}
+input,select{padding:8px;margin:5px;border-radius:5px;border:1px solid #ccc;}
+button{padding:8px 15px;background:#1e3c72;color:white;border:none;border-radius:5px;cursor:pointer;}
+button:hover{background:#16325c;}
+.danger{background:red;}
+table{width:100%;border-collapse:collapse;margin-top:10px;}
+table th{background:#1e3c72;color:white;padding:8px;}
+table td{border:1px solid #ddd;padding:8px;text-align:center;}
+.delete{color:red;font-weight:bold;text-decoration:none;}
+.delete:hover{color:darkred;}
+</style>
+</head>
+
+<body>
+
+<div class="navbar">
+<h1> Progress Card</h1>
+<a href="/logout" class="logout">Logout</a>
+</div>
+
+<div class="container">
+
+<!-- ================= STUDENT MANAGEMENT ================= -->
+<div class="section">
+<h2>🎓 Student Management</h2>
+
+<!-- ADD STUDENT -->
+<div class="card">
+<h3>Add Student</h3>
+<form method="POST">
+<input type="text" name="name" placeholder="Student Name" required>
+<input type="text" name="reg" placeholder="Register No" required>
+
+<select name="course" required>
+<option value="">Course</option>
+{% for c in courses %}
+<option value="{{ c.id }}">{{ c.course_name }}</option>
+{% endfor %}
+</select>
+
+<select name="sem" required>
+<option value="">Semester</option>
+{% for s in semesters %}
+<option value="{{ s.id }}">{{ s.semester_name }}</option>
+{% endfor %}
+</select>
+
+<select name="div" required>
+<option value="">Division</option>
+{% for d in divisions %}
+<option value="{{ d.id }}">{{ d.division_name }}</option>
+{% endfor %}
+</select>
+
+
+<button type="submit" name="save_student">Add Student</button>
+</form>
+</div>
+
+<!-- CLASS MANAGEMENT -->
+<div class="card">
+<h3>Class Management</h3>
+<form method="POST">
+
+<select name="course" required>
+<option value="">Select Course</option>
+{% for c in courses %}
+<option value="{{ c.id }}"
+{% if selected_course == c.id|string %}selected{% endif %}>
+{{ c.course_name }}
+</option>
+{% endfor %}
+</select>
+
+<select name="sem" required>
+<option value="">Select Semester</option>
+{% for s in semesters %}
+<option value="{{ s.id }}"
+{% if selected_sem == s.id|string %}selected{% endif %}>
+{{ s.semester_name }}
+</option>
+{% endfor %}
+</select>
+
+<select name="div" required>
+<option value="">Select Division</option>
+{% for d in divisions %}
+<option value="{{ d.id }}"
+{% if selected_div == d.id|string %}selected{% endif %}>
+{{ d.division_name }}
+</option>
+{% endfor %}
+</select>
+
+<button type="submit" name="manage_class">Filter</button>
+
+<br><br>
+
+{% if students %}
+<select name="student_id">
+<option value="">Select Student</option>
+{% for s in students %}
+<option value="{{ s.id }}">
+{{ s.name }} ({{ s.register_no }})
+</option>
+{% endfor %}
+</select>
+
+<button type="submit" name="manage_class"
+onclick="return confirm('Delete Selected Student?')">
+Remove Student Record
+</button>
+
+<button type="submit" name="delete_class_btn"
+class="danger"
+onclick="return confirm('Delete Entire Class?')">
+Remove Class Records
+</button>
+{% endif %}
+
+</form>
+</div>
+
+<!-- ENTER CLASS -->
+<div class="card">
+<h3>Class Progress Dashboard</h3>
+<form method="POST">
+
+<select name="course" required>
+<option value="">Course</option>
+{% for c in courses %}
+<option value="{{ c.id }}">{{ c.course_name }}</option>
+{% endfor %}
+</select>
+
+<select name="sem" required>
+<option value="">Semester</option>
+{% for s in semesters %}
+<option value="{{ s.id }}">{{ s.semester_name }}</option>
+{% endfor %}
+</select>
+
+<select name="div" required>
+<option value="">Division</option>
+{% for d in divisions %}
+<option value="{{ d.id }}">{{ d.division_name }}</option>
+{% endfor %}
+</select>
+
+<button type="submit" name="view_class">Open Class</button>
+
+</form>
+</div>
+
+</div>
+
+<!-- ================= SUBJECT MANAGEMENT ================= -->
+<div class="section">
+<h2>📘 Subject Management</h2>
+
+<div class="card">
+<h3>Add Subject</h3>
+<form method="POST">
+
+<input type="text" name="subject_name" placeholder="Subject Name" required>
+
+<select name="sub_course" required>
+<option value="">Course</option>
+{% for c in courses %}
+<option value="{{ c.id }}">{{ c.course_name }}</option>
+{% endfor %}
+</select>
+
+<select name="sub_sem" required>
+<option value="">Semester</option>
+{% for s in semesters %}
+<option value="{{ s.id }}">{{ s.semester_name }}</option>
+{% endfor %}
+</select>
+
+<button type="submit" name="add_subject">Add Subject</button>
+</form>
+</div>
+
+<div class="card">
+<h3>Search & Filter Subjects</h3>
+<form method="POST">
+
+<select name="sub_course" required>
+<option value="">Course</option>
+{% for c in courses %}
+<option value="{{ c.id }}"
+{% if selected_sub_course == c.id|string %}selected{% endif %}>
+{{ c.course_name }}
+</option>
+{% endfor %}
+</select>
+
+<select name="sub_sem" required>
+<option value="">Semester</option>
+{% for s in semesters %}
+<option value="{{ s.id }}"
+{% if selected_sub_sem == s.id|string %}selected{% endif %}>
+{{ s.semester_name }}
+</option>
+{% endfor %}
+</select>
+
+<button type="submit" name="filter_subject">Filter</button>
+</form>
+</div>
+
+<div class="card">
+<h3>Subject List</h3>
+<table>
+<tr>
+<th>Subject</th>
+<th>Action</th>
+</tr>
+
+{% for sub in subjects %}
+<tr>
+<td>{{ sub.subject_name }}</td>
+<td>
+<a class="delete"
+href="/page1?delete_subject={{ sub.id }}"
+onclick="return confirm('Delete Subject?')">
+Delete
+</a>
+</td>
+</tr>
+{% endfor %}
+</table>
+</div>
+
+</div>
+
+<!-- ================= EXAM MANAGEMENT ================= -->
+<div class="section">
+<h2>📝 Exam Management</h2>
+
+<div class="card">
+<h3>Add Exam</h3>
+<form method="POST">
+<input type="text" name="exam_name" placeholder="Exam Name" required>
+<button type="submit" name="add_exam">Add Exam</button>
+</form>
+</div>
+
+<div class="card">
+<h3>Exam List</h3>
+<table>
+<tr>
+<th>Exam</th>
+<th>Action</th>
+</tr>
+
+{% for e in exams %}
+<tr>
+<td>{{ e.exam_name }}</td>
+<td>
+<a class="delete"
+href="/page1?delete_exam={{ e.id }}"
+onclick="return confirm('Delete Exam?')">
+Delete
+</a>
+</td>
+</tr>
+{% endfor %}
+</table>
+</div>
+
+</div>
+
+</div>
+</body>
+<script>
+
+function addStudent(){
+    const form = event.target;
+    fetch("/api/add_student", {
+        method:"POST",
+        body:new FormData(form)
+    }).then(()=>{
+        alert("Student Added");
+        form.reset();
+    });
+    return false;
+}
+
+function addSubject(){
+    const form = event.target;
+    fetch("/api/add_subject", {
+        method:"POST",
+        body:new FormData(form)
+    }).then(()=>{
+        alert("Subject Added");
+        form.reset();
+    });
+    return false;
+}
+
+function addExam(){
+    const form = event.target;
+    fetch("/api/add_exam", {
+        method:"POST",
+        body:new FormData(form)
+    }).then(()=>{
+        alert("Exam Added");
+        form.reset();
+    });
+    return false;
+}
+
+function filterStudents(){
+
+    const course = document.getElementById("filterCourse").value;
+    const sem = document.getElementById("filterSem").value;
+    const div = document.getElementById("filterDiv").value;
+
+    fetch("/api/filter_students", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({course,sem,div})
+    })
+    .then(res=>res.json())
+    .then(data=>{
+        const dropdown = document.getElementById("studentDropdown");
+        dropdown.innerHTML="";
+        data.forEach(st=>{
+            dropdown.innerHTML += 
+            `<option value="${st.id}">
+            ${st.name} (${st.register_no})
+            </option>`;
+        });
+    });
+}
+
+function deleteStudent(){
+    const id = document.getElementById("studentDropdown").value;
+
+    fetch("/api/delete_student", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({id})
+    }).then(()=>{
+        alert("Student Deleted");
+        filterStudents();
+    });
+}
+
+function deleteClass(){
+    const course = document.getElementById("filterCourse").value;
+    const sem = document.getElementById("filterSem").value;
+    const div = document.getElementById("filterDiv").value;
+
+    fetch("/api/delete_class", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({course,sem,div})
+    }).then(()=>{
+        alert("Class Deleted");
+        document.getElementById("studentDropdown").innerHTML="";
+    });
+}
+
+</script>
+</html>

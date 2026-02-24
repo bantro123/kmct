@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Progress Card</title>
+
+<style>
+body{
+    margin:0;
+    font-family:'Segoe UI',sans-serif;
+    background:#f4f6f9;
+}
+.header{
+    background:#1e3c72;
+    color:white;
+    padding:20px;
+    text-align:center;
+    position:relative;
+}
+.back{
+    position:absolute;
+    left:20px;
+    top:20px;
+    color:white;
+    text-decoration:none;
+}
+.container{
+    width:95%;
+    max-width:1100px;
+    margin:30px auto;
+    background:white;
+    padding:25px;
+    border-radius:10px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.1);
+}
+.student-info{
+    margin-bottom:20px;
+    font-weight:bold;
+    line-height:1.8;
+}
+table{
+    width:100%;
+    border-collapse:collapse;
+    table-layout:fixed;
+}
+th{
+    background:#1e3c72;
+    color:white;
+    padding:8px;
+}
+td{
+    border:1px solid #ddd;
+    padding:8px;
+    text-align:center;
+}
+input{
+    width:60px;
+    padding:5px;
+    text-align:center;
+}
+button{
+    padding:8px 15px;
+    background:#1e3c72;
+    color:white;
+    border:none;
+    border-radius:5px;
+    margin:10px 5px;
+    cursor:pointer;
+}
+button:hover{
+    background:#16325c;
+}
+.signature{
+    margin-top:50px;
+    display:flex;
+    justify-content:space-between;
+}
+.line{
+    margin-top:40px;
+    border-top:1px solid black;
+    width:200px;
+    text-align:center;
+}
+@media print{
+
+    .back, button, select{
+        display:none;
+    }
+
+    body{
+        background:white;
+    }
+
+    .header{
+        background:white;
+        color:black;
+        border-bottom:2px solid black;
+    }
+
+    .container{
+        box-shadow:none;
+        width:100%;
+        max-width:100%;
+        padding:0;
+        margin:0;
+        border:none;
+    }
+
+    table{
+        border-collapse:collapse;
+    }
+
+    th{
+        background:white;
+        color:black;
+        border:1px solid black;
+    }
+
+    td{
+        border:1px solid black;
+    }
+
+    input{
+        border:none;
+    }
+
+    .signature{
+        margin-top:60px;
+    }
+
+    .line{
+        border-top:1px solid black;
+    }
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="header">
+<a href="/page1" class="back">⬅ Back</a>
+<h2>KMCT Institute – Student Progress Card</h2>
+</div>
+
+<div class="container">
+
+<label><b>Select Student:</b></label>
+<select onchange="location='/page2/' + this.value;">
+{% for st in class_students %}
+<option value="{{ st.id }}"
+{% if st.id == student.id %}selected{% endif %}>
+{{ st.name }}
+</option>
+{% endfor %}
+</select>
+
+<div class="student-info">
+Name: {{ student.name }} <br>
+Register No: {{ student.register_no }} <br>
+Course: {{ student.course_name }} <br>
+Semester: {{ student.semester_name }} <br>
+Division: {{ student.division_name }}
+</div>
+
+<form method="POST" action="/save_progress">
+
+<input type="hidden" name="student_id" value="{{ student.id }}">
+
+
+<input type="hidden" name="student_id" value="{{ student.id }}">
+
+<table>
+
+<tr>
+<th>Subject</th>
+<th>Attendance</th>
+{% for exam in exams %}
+<th>{{ exam.exam_name }}</th>
+{% endfor %}
+</tr>
+
+{% for row in data %}
+<tr>
+
+<td>{{ row.subject }}</td>
+
+<!-- Attendance -->
+<td>
+<input type="number"
+name="att_{{ row.subject_id }}"
+value="{{ row.attendance }}"
+class="attendanceInput"
+oninput="calculateOverall()"
+min="0">
+</td>
+
+<!-- Marks -->
+{% for exam in exams %}
+<td>
+<input type="number"
+name="mark_{{ row.subject_id }}_{{ exam.id }}"
+value="{{ row.marks[loop.index0] }}"
+min="0">
+</td>
+{% endfor %}
+
+</tr>
+{% endfor %}
+
+</table>
+
+<div style="margin-top:10px; font-weight:bold;">
+Attendance %:
+<span id="attendancePercent">0%</span>
+</div>
+
+<br>
+<button type="submit">Save</button>
+<button type="button" onclick="window.print()">Print</button>
+
+</form>
+
+<br>
+
+<a href="/bulk_print/{{ student.course_id }}/{{ student.semester_id }}/{{ student.division_id }}">
+<button>Print All</button>
+</a>
+
+<div class="signature">
+<div>
+<div class="line"></div>
+Parent Signature
+</div>
+
+<div>
+<div class="line"></div>
+Class Mentor Signature
+</div>
+</div>
+
+</div>
+
+<script>
+function calculateAttendance(){
+
+    let inputs = document.querySelectorAll(".attendanceInput");
+    let total = 0;
+
+    inputs.forEach(inp=>{
+        total += parseInt(inp.value) || 0;
+    });
+
+    // Assuming maximum attendance = 100
+    let percent = (total / 100) * 100;
+
+    document.getElementById("attendancePercent").innerText =
+        percent.toFixed(2) + "%";
+}
+
+window.onload = calculateAttendance;
+</script>
+
+</body>
+</html>

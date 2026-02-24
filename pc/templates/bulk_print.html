@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Class Bulk Print</title>
+
+<style>
+body{
+    font-family:'Segoe UI';
+    margin:0;
+}
+.card{
+    width:90%;
+    margin:40px auto;
+    padding:20px;
+    border:1px solid #000;
+    page-break-after:always;
+}
+h2{
+    text-align:center;
+}
+table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:20px;
+}
+th, td{
+    border:1px solid #000;
+    padding:8px;
+    text-align:center;
+}
+.signature{
+    margin-top:40px;
+    display:flex;
+    justify-content:space-between;
+}
+.line{
+    margin-top:40px;
+    border-top:1px solid black;
+    width:200px;
+}
+@media print{
+    button{display:none;}
+}
+</style>
+</head>
+<body>
+
+<button onclick="window.print()">Print</button>
+
+{% for item in data %}
+<div class="card">
+
+<h2>Progress Card</h2>
+
+<b>Name:</b> {{ item.student.name }} <br>
+<b>Register No:</b> {{ item.student.register_no }} <br>
+<b>Course:</b> {{ item.student.course_name }} <br>
+<b>Semester:</b> {{ item.student.semester_name }} <br>
+<b>Division:</b> {{ item.student.division_name }}
+
+<table>
+<tr>
+<th>Subject</th>
+<th>Attendance</th>
+{% for exam in exams %}
+<th>{{ exam.exam_name }}</th>
+{% endfor %}
+</tr>
+
+{% for row in item.subjects %}
+<tr>
+<td>{{ row.subject }}</td>
+<td>{{ row.attendance }}</td>
+{% for m in row.marks %}
+<td>{{ m }}</td>
+{% endfor %}
+</tr>
+{% endfor %}
+</table>
+
+<div class="signature">
+<div>
+<div class="line"></div>
+Parent Signature
+</div>
+<div>
+<div class="line"></div>
+Class Mentor Signature
+</div>
+</div>
+
+</div>
+{% endfor %}
+
+</body>
+</html>
